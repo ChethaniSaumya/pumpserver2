@@ -110,26 +110,20 @@ router.post('/addfriend', cors(corsOptions), async (req, res) => {
                 order = lastDoc.data().order + 1; // Increment the last order value
             }
 
-            count = snapshot.size; // This gives the count of documents
+            const count = snapshot.size; // This gives the count of documents
 
             console.log("Count: " + count);
 
-            var fileBase64 = req.body.file;
-            const buffer = Buffer.from(fileBase64, 'base64');
-            const imagePath = path.join(__dirname, '/uploads/' + req.body.fileName);
-            fs.writeFileSync(imagePath, buffer);
-
-            let { name, memeTicker, description, website, twitter,
-                telegram, pump, moonshot, solScan, wallet, status, txn_sign } = req.body;
-
             // Pinata section
-            const readableStreamForFile = fs.createReadStream(imagePath);
+            const buffer = Buffer.from(req.body.file, 'base64');
+            const readableStreamForFile = require('stream').Readable.from(buffer);
+            
             const options = {
                 pinataMetadata: {
                     name: req.body.fileName,
                     keyvalues: {
-                        NAME: name,
-                        DESCRIPTION: description
+                        NAME: req.body.name,
+                        DESCRIPTION: req.body.description
                     }
                 },
                 pinataOptions: {
@@ -143,7 +137,11 @@ router.post('/addfriend', cors(corsOptions), async (req, res) => {
             const fileUrl = `https://gateway.pinata.cloud/ipfs/${result.IpfsHash}`;
             console.log("File URL:", fileUrl);
 
-            const dateOptions = {
+            const timestamp = Math.floor(Date.now() / 1000);
+            console.log(timestamp);
+
+            const date = new Date();
+            const formattedDate = date.toLocaleString('en-US', {
                 weekday: 'long',
                 year: 'numeric',
                 month: 'long',
@@ -154,40 +152,34 @@ router.post('/addfriend', cors(corsOptions), async (req, res) => {
                 timeZone: 'GMT',
                 timeZoneName: 'short',
                 hour12: true
-            };
-
-            const timestamp = Math.floor(Date.now() / 1000);
-            console.log(timestamp);
-
-            const date = new Date();
-            const formattedDate = date.toLocaleString('en-US', dateOptions).replace('GMT', 'GMT:');
+            }).replace('GMT', 'GMT:');
             console.log(formattedDate);
 
-            const lowercaseName = name.toLowerCase();
+            const lowercaseName = req.body.name.toLowerCase();
 
             const peopleRef = db.collection('people').doc(count.toString());
             await peopleRef.set({
-                NAME: name,
+                NAME: req.body.name,
                 LOWERCASE_NAME: lowercaseName,
-                DESCRIPTION: description,
-                MEMETICKER: memeTicker,
+                DESCRIPTION: req.body.description,
+                MEMETICKER: req.body.memeTicker,
                 IMAGE: fileUrl,
-                WEBSITE: website,
-                TWITTER: twitter,
-                TELEGRAM: telegram,
-                PUMP: pump,
-                MOONSHOT: moonshot,
-                SOLSCAN: solScan,
-                WALLET: wallet,
-                STATUS: status,
-                SIGNATURE_PK: txn_sign.publicKey,
-                SIGNATURE_SIGN: txn_sign.signature,
+                WEBSITE: req.body.website,
+                TWITTER: req.body.twitter,
+                TELEGRAM: req.body.telegram,
+                PUMP: req.body.pump,
+                MOONSHOT: req.body.moonshot,
+                SOLSCAN: req.body.solScan,
+                WALLET: req.body.wallet,
+                STATUS: req.body.status,
+                SIGNATURE_PK: req.body.txn_sign.publicKey,
+                SIGNATURE_SIGN: req.body.txn_sign.signature,
                 TIME: timestamp,
                 order: order
 
             }, { merge: true });
 
-            res.status(200).send(friends);
+            res.status(200).send('Friend added successfully');
         } else {
             console.log("No file received.");
             res.status(400).send('No file received');
